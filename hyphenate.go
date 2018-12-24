@@ -1,25 +1,50 @@
 package main
 
 import (
-	//"os"
+	"os"
 	"fmt"
 	"io/ioutil"
 	"strings"
 	"unicode"
+	"time"
 )
 
 var wordToHyphenate string
 var wordHyphenationNumbers []rune
 
 func main() {
-	//hyphenationArguments := os.Args
-	wordToHyphenate = "recursion"
-	wordHyphenationNumbers = make([]rune, len(wordToHyphenate) + 1)
+	start := time.Now()
+
 	patternsFileContent, err := ioutil.ReadFile("tex-hyphenation-patterns.txt")
 	if err != nil {
 		return
 	}
 	hyphenationPatterns := strings.Split(string(patternsFileContent), "\n")
+
+	cliArguments := os.Args
+	if len(cliArguments) >= 2 {
+		for _, singleWord := range os.Args[1:] {
+			wordToHyphenate = singleWord
+			hyphenateWord(hyphenationPatterns)
+		}
+	} else if len(cliArguments) == 1 {
+		wordsFileContent, err := ioutil.ReadFile("words.txt")
+		if err != nil {
+			return
+		}
+		words := strings.Split(string(wordsFileContent), "\n")
+		for _, singleWord := range words {
+			//fmt.Println(singleWord)
+			wordToHyphenate = singleWord
+			hyphenateWord(hyphenationPatterns)
+		}
+	}
+	elapsed := time.Since(start)
+	fmt.Println(elapsed)
+}
+
+func hyphenateWord(hyphenationPatterns []string) {
+	wordHyphenationNumbers = make([]rune, len(wordToHyphenate) + 1)
 	for _, pattern := range hyphenationPatterns {
 		reducedPattern := strings.Map(removeDigit, pattern)
 		if strings.HasPrefix(pattern, ".") {
@@ -33,16 +58,25 @@ func main() {
 			}
 			continue
 		} else {
-			matchIndex := strings.Index(wordToHyphenate, reducedPattern)
+			matchIndex := indexFrom(wordToHyphenate, reducedPattern, 0)
 			for matchIndex != -1 {
 				updateWordHyphenationNumbers(pattern, matchIndex)
-				if len(wordToHyphenate) - 1 != matchIndex {
-					matchIndex = strings.Index(wordToHyphenate[matchIndex + 1:], reducedPattern)
-				}
+				matchIndex = indexFrom(wordToHyphenate, reducedPattern, matchIndex + 1)
 			}
 		}
 	}
 	fmt.Println(generateHyphenatedWord())
+}
+
+func indexFrom(str, search string, from int) int{
+	if from > len(str) - 1 {
+		return -1
+	}
+	matchInSubstring := strings.Index(str[from:], search)
+	if matchInSubstring == -1 {
+		return -1
+	}
+	return matchInSubstring + from
 }
 
 func generateHyphenatedWord() string {
@@ -67,8 +101,10 @@ func updateWordHyphenationNumbers(pattern string, matchIndx int) {
 	for _, rune := range pattern {
 		if rune == '.' {
 			continue
-		} else if unicode.IsDigit(rune) && rune > wordHyphenationNumbers[matchIndx + currentWordGapIndx] {
-			wordHyphenationNumbers[matchIndx + currentWordGapIndx] = rune
+		} else if unicode.IsDigit(rune) {
+			if rune > wordHyphenationNumbers[matchIndx + currentWordGapIndx] {
+				wordHyphenationNumbers[matchIndx + currentWordGapIndx] = rune
+			}
 		} else {
 			currentWordGapIndx += 1
 		}
