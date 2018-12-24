@@ -11,6 +11,7 @@ import (
 
 var wordToHyphenate string
 var wordHyphenationNumbers []rune
+var hyphenatedWords []string
 
 func main() {
 	start := time.Now()
@@ -23,9 +24,10 @@ func main() {
 
 	cliArguments := os.Args
 	if len(cliArguments) >= 2 {
-		for _, singleWord := range os.Args[1:] {
+		hyphenatedWords = make([]string, len(cliArguments) - 1)
+		for i, singleWord := range os.Args[1:] {
 			wordToHyphenate = singleWord
-			hyphenateWord(hyphenationPatterns)
+			hyphenatedWords[i] = hyphenateWord(hyphenationPatterns)
 		}
 	} else if len(cliArguments) == 1 {
 		wordsFileContent, err := ioutil.ReadFile("words.txt")
@@ -33,17 +35,18 @@ func main() {
 			return
 		}
 		words := strings.Split(string(wordsFileContent), "\n")
-		for _, singleWord := range words {
-			//fmt.Println(singleWord)
+		hyphenatedWords = make([]string, len(words))
+		for i, singleWord := range words {
 			wordToHyphenate = singleWord
-			hyphenateWord(hyphenationPatterns)
+			hyphenatedWords[i] = hyphenateWord(hyphenationPatterns)
 		}
 	}
+	fmt.Println(strings.Join(hyphenatedWords, "\n"))
 	elapsed := time.Since(start)
 	fmt.Println(elapsed)
 }
 
-func hyphenateWord(hyphenationPatterns []string) {
+func hyphenateWord(hyphenationPatterns []string) string {
 	wordHyphenationNumbers = make([]rune, len(wordToHyphenate) + 1)
 	for _, pattern := range hyphenationPatterns {
 		reducedPattern := strings.Map(removeDigit, pattern)
@@ -65,7 +68,7 @@ func hyphenateWord(hyphenationPatterns []string) {
 			}
 		}
 	}
-	fmt.Println(generateHyphenatedWord())
+	return generateHyphenatedWord()
 }
 
 func indexFrom(str, search string, from int) int{
