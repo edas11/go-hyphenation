@@ -1,5 +1,7 @@
 package algorithm
 
+import "unicode"
+
 type word struct {
 	wordToHyphenate    string
 	hyphenationNumbers []rune
@@ -7,6 +9,25 @@ type word struct {
 
 func newWord(wordToHyphenate string) word {
 	return word{wordToHyphenate, make([]rune, len(wordToHyphenate)+1)}
+}
+
+func (word word) updateWordHyphenationNumbers(pattern string, matchIndx int) {
+	currentWordGapIndx := 0
+	for _, patternChar := range pattern {
+		if patternChar == '.' {
+			continue
+		} else if unicode.IsDigit(patternChar) {
+			word.replaceDigitIfLarger(matchIndx+currentWordGapIndx, patternChar)
+		} else {
+			currentWordGapIndx++
+		}
+	}
+}
+
+func (word word) replaceDigitIfLarger(wordNumberIndx int, patternDigit rune) {
+	if patternDigit > word.hyphenationNumbers[wordNumberIndx] {
+		word.hyphenationNumbers[wordNumberIndx] = patternDigit
+	}
 }
 
 func (word word) generateHyphenatedWord() string {

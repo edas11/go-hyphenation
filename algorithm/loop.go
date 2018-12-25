@@ -3,7 +3,6 @@ package algorithm
 import (
 	"github.com/edas11/hyphenation/util/text"
 	"strings"
-	"unicode"
 )
 
 type LoopAlgorithm struct {
@@ -50,24 +49,5 @@ func (word word) matchGeneralPattern(pattern, reducedPattern string) {
 	for matchIndex != -1 {
 		word.updateWordHyphenationNumbers(pattern, matchIndex)
 		matchIndex = text.IndexFrom(word.wordToHyphenate, reducedPattern, matchIndex+1)
-	}
-}
-
-func (word word) updateWordHyphenationNumbers(pattern string, matchIndx int) {
-	currentWordGapIndx := 0
-	for _, patternChar := range pattern {
-		if patternChar == '.' {
-			continue
-		} else if unicode.IsDigit(patternChar) {
-			word.replaceDigitIfLarger(matchIndx+currentWordGapIndx, patternChar)
-		} else {
-			currentWordGapIndx++
-		}
-	}
-}
-
-func (word word) replaceDigitIfLarger(wordNumberIndx int, patternDigit rune) {
-	if patternDigit > word.hyphenationNumbers[wordNumberIndx] {
-		word.hyphenationNumbers[wordNumberIndx] = patternDigit
 	}
 }

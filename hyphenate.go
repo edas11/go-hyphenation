@@ -20,12 +20,13 @@ func main() {
 	}
 	hyphenationPatterns := strings.Split(string(patternsFileContent), "\n")
 
-	loopAlgorithm := algorithm.NewLoopAlgorithm(hyphenationPatterns)
+	algorithm := algorithm.NewTreeAlgorithm(hyphenationPatterns)
+	//algorithm := algorithm.NewLoopAlgorithm(hyphenationPatterns)
 	cliArguments := os.Args
 	if len(cliArguments) >= 2 {
 		hyphenatedWords = make([]string, len(cliArguments) - 1)
 		for i, singleWord := range os.Args[1:] {
-			hyphenatedWords[i] = loopAlgorithm.HyphenateWord(singleWord)
+			hyphenatedWords[i] = algorithm.HyphenateWord(singleWord)
 		}
 	} else if len(cliArguments) == 1 {
 		wordsFileContent, err := ioutil.ReadFile("words.txt")
@@ -35,7 +36,7 @@ func main() {
 		words := strings.Split(string(wordsFileContent), "\n")
 		hyphenatedWords = make([]string, len(words))
 		for i, singleWord := range words {
-			hyphenatedWords[i] = loopAlgorithm.HyphenateWord(singleWord)
+			hyphenatedWords[i] = algorithm.HyphenateWord(singleWord)
 		}
 	}
 	fmt.Println(strings.Join(hyphenatedWords, "\n"))
