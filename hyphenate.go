@@ -4,28 +4,34 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"runtime"
 	"strings"
 	"time"
+
 	"github.com/edas11/hyphenation/algorithm"
 )
 
 type cli struct {
 	isTreeAlgorithm bool
-	wordsFileName string
-	args []string
+	isConcurrent    bool
+	wordsFileName   string
+	args            []string
 }
 
 var hyphenatedWords []string
 var cliData cli
+var algorithmRunner algorithm.HyphenationAlgorithm
+var chanForWords chan []string
 
 func main() {
-	start := time.Now()
 	hyphenationPatterns := loadPatterns()
 	cliData = parseCli()
-	algorithmRunner := getAlgorithm(hyphenationPatterns)
-	hyphenatedWords := runAlgorithm(algorithmRunner)
+	algorithmRunner = getAlgorithm(hyphenationPatterns)
+	start := time.Now()
+	hyphenatedWords := runAlgorithm()
+	elapsed := time.Since(start)
 	fmt.Println(strings.Join(hyphenatedWords, "\n"))
-	fmt.Println(time.Since(start))
+	fmt.Println(elapsed)
 }
 
 func loadPatterns() []string {
@@ -38,9 +44,10 @@ func loadPatterns() []string {
 
 func parseCli() cli {
 	isTreeAlgorithm := flag.Bool("tree", true, "Whether to use tree or loop algorithm")
+	isConcurrent := flag.Bool("concurrent", true, "Whether to run algorithm concurrently")
 	wordsFileName := flag.String("file", "", "Name of file that contains words to hyphenate")
 	flag.Parse()
-	return cli{*isTreeAlgorithm, *wordsFileName, flag.Args()}
+	return cli{*isTreeAlgorithm, *isConcurrent, *wordsFileName, flag.Args()}
 }
 
 func getAlgorithm(hyphenationPatterns []string) algorithm.HyphenationAlgorithm {
@@ -50,31 +57,53 @@ func getAlgorithm(hyphenationPatterns []string) algorithm.HyphenationAlgorithm {
 	return algorithm.NewLoopAlgorithm(hyphenationPatterns)
 }
 
-func runAlgorithm(algorithmRunner algorithm.HyphenationAlgorithm) []string {
+func runAlgorithm() []string {
+	var words []string
 	if cliData.wordsFileName == "" {
-		return runAlgorithmOnWordsFromCli(algorithmRunner)
+		words = cliData.args
+	} else {
+		wordsFileContent, err := ioutil.ReadFile(cliData.wordsFileName)
+		if err != nil {
+			panic("Couldnt read " + cliData.wordsFileName)
+		}
+		words = strings.Split(string(wordsFileContent), "\n")
 	}
-	return runAlgorithmOnWordsFromFile(algorithmRunner)
+
+	if cliData.isConcurrent {
+		return runConcurrentlyAlgorithmOnWords(words)
+	}
+	return runAlgorithmOnWords(words)
 }
 
-func runAlgorithmOnWordsFromCli(algorithmRunner algorithm.HyphenationAlgorithm) []string {
-	wordsToHyphenate := cliData.args
-	hyphenatedWords = make([]string, len(wordsToHyphenate))
-	for i, singleWord := range wordsToHyphenate {
-		hyphenatedWords[i] = algorithmRunner.HyphenateWord(singleWord)
+func runConcurrentlyAlgorithmOnWords(words []string) []string {
+	hyphenatedWords = make([]string, len(words))
+	numCPU := runtime.NumCPU()
+	numOfWordsForOneCPU := len(words) / numCPU
+	chanForWords = make(chan []string)
+	for i := 0; i < numCPU; i++ {
+		if i == numCPU-1 {
+			go runAlgorithmOnWords(words[i*numOfWordsForOneCPU:])
+		} else {
+			go runAlgorithmOnWords(words[i*numOfWordsForOneCPU : (i+1)*numOfWordsForOneCPU])
+		}
+	}
+	emptyFrom := 0
+	for i := 0; i < numCPU; i++ {
+		blockOfHyphenatedWords := <-chanForWords
+		copy(hyphenatedWords[emptyFrom:emptyFrom+len(blockOfHyphenatedWords)], blockOfHyphenatedWords)
+		emptyFrom += len(blockOfHyphenatedWords)
 	}
 	return hyphenatedWords
 }
 
-func runAlgorithmOnWordsFromFile(algorithmRunner algorithm.HyphenationAlgorithm) []string {
-	wordsFileContent, err := ioutil.ReadFile(cliData.wordsFileName)
-	if err != nil {
-		panic("Couldnt read " + cliData.wordsFileName)
-	}
-	words := strings.Split(string(wordsFileContent), "\n")
-	hyphenatedWords = make([]string, len(words))
+func runAlgorithmOnWords(words []string) []string {
+	hyphenatedWords := make([]string, len(words))
 	for i, singleWord := range words {
 		hyphenatedWords[i] = algorithmRunner.HyphenateWord(singleWord)
 	}
-	return hyphenatedWords
+	if chanForWords == nil {
+		return hyphenatedWords
+	}
+	chanForWords <- hyphenatedWords
+	return nil
 }
