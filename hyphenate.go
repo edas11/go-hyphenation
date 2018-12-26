@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -20,25 +20,36 @@ func main() {
 	}
 	hyphenationPatterns := strings.Split(string(patternsFileContent), "\n")
 
-	algorithm := algorithm.NewTreeAlgorithm(hyphenationPatterns)
-	//algorithm := algorithm.NewLoopAlgorithm(hyphenationPatterns)
-	cliArguments := os.Args
-	if len(cliArguments) >= 2 {
-		hyphenatedWords = make([]string, len(cliArguments) - 1)
-		for i, singleWord := range os.Args[1:] {
-			hyphenatedWords[i] = algorithm.HyphenateWord(singleWord)
+	isTreeAlgorithm := flag.Bool("tree", true, "Whether to use tree or loop algorithm")
+	wordsFileName := flag.String("file", "", "Name of file that contains words to hyphenate")
+	flag.Parse()
+
+	var algorithmRunner algorithm.HyphenationAlgorithm
+	if *isTreeAlgorithm {
+		algorithmRunner = algorithm.NewTreeAlgorithm(hyphenationPatterns)
+	} else {
+		algorithmRunner = algorithm.NewLoopAlgorithm(hyphenationPatterns)
+	}
+
+	if *wordsFileName == "" {
+		wordsToHyphenate := flag.Args()
+		hyphenatedWords = make([]string, len(wordsToHyphenate))
+		for i, singleWord := range wordsToHyphenate {
+			hyphenatedWords[i] = algorithmRunner.HyphenateWord(singleWord)
 		}
-	} else if len(cliArguments) == 1 {
-		wordsFileContent, err := ioutil.ReadFile("words.txt")
+	} else {
+		wordsFileContent, err := ioutil.ReadFile(*wordsFileName)
 		if err != nil {
+			fmt.Println("Couldnt read " + *wordsFileName)
 			return
 		}
 		words := strings.Split(string(wordsFileContent), "\n")
 		hyphenatedWords = make([]string, len(words))
 		for i, singleWord := range words {
-			hyphenatedWords[i] = algorithm.HyphenateWord(singleWord)
+			hyphenatedWords[i] = algorithmRunner.HyphenateWord(singleWord)
 		}
 	}
+
 	fmt.Println(strings.Join(hyphenatedWords, "\n"))
 	elapsed := time.Since(start)
 	fmt.Println(elapsed)
