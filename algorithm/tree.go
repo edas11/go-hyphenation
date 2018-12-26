@@ -32,48 +32,59 @@ func (algorithm TreeAlgorithm) HyphenateWord(wordToHyphenate string) string {
 
 func (word word) matchAllPatternsAt(matchIndx int, tree *patternsTree) {
 	wordToHyphenate := []rune(word.wordToHyphenate)
-	wordLength := len(wordToHyphenate)
 	currentCharIndx := matchIndx
 	currentLevelTree := tree
-	var ok bool
+	var hasMore bool
 	for {
-		for _, pattern := range currentLevelTree.patternsOfThisLevel {
-			if (strings.HasPrefix(pattern, ".") && matchIndx != 0) {
-				continue
-			}
-			patternLength := currentCharIndx - matchIndx
-			if (strings.HasSuffix(pattern, ".") && matchIndx != wordLength - patternLength) {
-				continue
-			}
-			word.updateWordHyphenationNumbers(pattern, matchIndx)
-		}
-		if currentCharIndx >= wordLength || currentLevelTree == nil {
+		word.processAllCurrenlyMatchedPatterns(currentLevelTree.patternsOfThisLevel, currentCharIndx - matchIndx, matchIndx)
+		
+		cantGoFurther := currentCharIndx >= word.wordLength || currentLevelTree == nil
+		if cantGoFurther {
 			break;
 		}
-		currentLevelTree, ok = currentLevelTree.nextTreeBranches[wordToHyphenate[currentCharIndx]]
-		if !ok {
+		currentLevelTree, hasMore = currentLevelTree.nextTreeBranches[wordToHyphenate[currentCharIndx]]
+		if !hasMore {
 			break
 		}
 		currentCharIndx++
 	}
 }
 
+func (word word) processAllCurrenlyMatchedPatterns(matchedPatterns []string, patternsLength int, matchIndx int) {
+	for _, pattern := range matchedPatterns {
+		if (strings.HasPrefix(pattern, ".") && matchIndx != 0) {
+			continue
+		}
+		if (strings.HasSuffix(pattern, ".") && matchIndx != word.wordLength - patternsLength) {
+			continue
+		}
+		word.updateWordHyphenationNumbers(pattern, matchIndx)
+	}
+}
+
 func (tree *patternsTree) putPatternIntoTree (pattern string) {
+	treeLevelForPattern := tree.findOrCreateTreeLevelForPattern(pattern)
+
+	if treeLevelForPattern.patternsOfThisLevel == nil {
+		treeLevelForPattern.patternsOfThisLevel = make([]string, 1)
+	}
+	treeLevelForPattern.patternsOfThisLevel = append(treeLevelForPattern.patternsOfThisLevel, pattern)
+}
+
+func (tree *patternsTree) findOrCreateTreeLevelForPattern (pattern string) *patternsTree {
 	currentTreeLevel := tree
+	var ok bool
 	for _, patternChar := range pattern {
-		if patternChar == '.' || unicode.IsDigit(patternChar) {
+		if !unicode.IsLetter(patternChar) {
 			continue
 		}
 
-		_, ok := currentTreeLevel.nextTreeBranches[patternChar]
+		_, ok = currentTreeLevel.nextTreeBranches[patternChar]
 		if !ok {
 			currentTreeLevel.nextTreeBranches[patternChar] = &patternsTree{make(map[rune]*patternsTree), make([]string, 1)}
 		}
+
 		currentTreeLevel = currentTreeLevel.nextTreeBranches[patternChar]
 	}
-
-	if currentTreeLevel.patternsOfThisLevel == nil {
-		currentTreeLevel.patternsOfThisLevel = make([]string, 1)
-	}
-	currentTreeLevel.patternsOfThisLevel = append(currentTreeLevel.patternsOfThisLevel, pattern)
+	return currentTreeLevel
 }
