@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/edas11/hyphenation/algorithm"
+	"github.com/edas11/go-hyphenation/algorithm"
 )
 
 type cli struct {

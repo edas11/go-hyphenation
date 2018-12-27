@@ -1,7 +1,7 @@
 package algorithm
 
 import (
-	"github.com/edas11/hyphenation/util/text"
+	"github.com/edas11/go-hyphenation/util/text"
 	"strings"
 )
 
